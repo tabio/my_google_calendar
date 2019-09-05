@@ -4,7 +4,6 @@ require 'my_google_calendar/version'
 require 'google/apis/calendar_v3'
 require 'googleauth'
 require 'googleauth/stores/file_token_store'
-require 'fileutils'
 
 module MyGoogleCalendar
   class Error < StandardError; end
@@ -53,6 +52,8 @@ module MyGoogleCalendar
         end
 
         credentials
+      rescue MultiJson::ParseError
+        raise Error, 'client secret fileの形式(json)を確認して下さい'
       end
     end
   end
