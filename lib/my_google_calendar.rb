@@ -9,7 +9,7 @@ module MyGoogleCalendar
   class MyGoogleCalendarError < StandardError; end
   class InvalidDateTime < StandardError; end
 
-  class Utility
+  module Utility
     class << self
       def parse_datetime(str)
         raise InvalidDateTime unless str.match?(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)
@@ -28,7 +28,7 @@ module MyGoogleCalendar
     end
   end
 
-  class MyAuth
+  module MyAuth
     OOB_URI = 'urn:ietf:wg:oauth:2.0:oob'
     SCOPE   = 'https://www.googleapis.com/auth/calendar'
 
@@ -46,7 +46,7 @@ module MyGoogleCalendar
         when credentials.nil?
           if code.nil?
             url = authorizer.get_authorization_url(base_url: OOB_URI)
-            raise "ブラウザより以下のURLを開いてtoken(code)を取得して呼び出し直して下さい\n#{url}"
+            raise MyGoogleCalendarError, "ブラウザより以下のURLを開いてtoken(code)を取得して呼び出し直して下さい\n#{url}"
           else
             authorizer.get_and_store_credentials_from_code(user_id: google_user_id, code: code, base_url: OOB_URI)
           end
@@ -55,8 +55,8 @@ module MyGoogleCalendar
         end
       rescue MultiJson::ParseError
         raise MyGoogleCalendarError, 'client secret fileの形式(json)を確認して下さい'
-      rescue => e
-        raise MyGoogleCalendarError, e.message
+      rescue MyGoogleCalendarError
+        raise $!
       end
 
       private
@@ -68,7 +68,7 @@ module MyGoogleCalendar
     end
   end
 
-  class Calendar
+  module Calendar
     class << self
       def register!(credentials, calendar_id, summary, start_at, end_at, app_name = 'my_google_calendar_app')
         service = Google::Apis::CalendarV3::CalendarService.new
@@ -96,8 +96,8 @@ module MyGoogleCalendar
         raise MyGoogleCalendarError, 'Google::Apis APIエラーが発生しました'
       rescue InvalidDateTime
         raise MyGoogleCalendarError, '入力された日付に誤りがあります'
-      rescue => e
-        raise MyGoogleCalendarError, e.message
+      rescue MyGoogleCalendarError
+        raise $!
       end
     end
   end
