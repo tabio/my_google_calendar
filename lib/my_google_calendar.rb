@@ -6,7 +6,7 @@ require 'googleauth'
 require 'googleauth/stores/file_token_store'
 
 module MyGoogleCalendar
-  class Error < StandardError; end
+  class MyGoogleCalendarError < StandardError; end
   class InvalidDateTime < StandardError; end
 
   class Utility
@@ -32,11 +32,9 @@ module MyGoogleCalendar
     OOB_URI = 'urn:ietf:wg:oauth:2.0:oob'
     SCOPE   = 'https://www.googleapis.com/auth/calendar'
 
-    # クラスインスタンス変数として定義
     class << self
-      def credentials(client_secret_file_path, token_file_path, google_user_id)
-        raise Error, 'client secret file が存在しません(https://console.cloud.google.com/apisよりDL)' unless File.exist?(client_secret_file_path)
-        raise Error, 'token file が存在しません' unless File.exist?(token_file_path)
+      def credentials(client_secret_file_path, token_file_path, google_user_id, code = nil)
+        check_files(client_secret_file_path, token_file_path)
 
         client_id   = Google::Auth::ClientId.from_file(client_secret_file_path)
         token_store = Google::Auth::Stores::FileTokenStore.new(file: token_file_path)
@@ -44,16 +42,28 @@ module MyGoogleCalendar
 
         credentials = authorizer.get_credentials(google_user_id)
 
-        if credentials.nil?
-          url = authorizer.get_authorization_url(base_url: OOB_URI)
-          puts "ブラウザより以下のURLを開いてトークンをコンソールに入力して下さい\n#{url}\n"
-          code = gets # コンソールからの標準入力対応
-          credentials = authorizer.get_and_store_credentials_from_code(user_id: google_user_id, code: code, base_url: OOB_URI)
+        case
+        when credentials.nil?
+          if code.nil?
+            url = authorizer.get_authorization_url(base_url: OOB_URI)
+            raise "ブラウザより以下のURLを開いてtoken(code)を取得して呼び出し直して下さい\n#{url}"
+          else
+            authorizer.get_and_store_credentials_from_code(user_id: google_user_id, code: code, base_url: OOB_URI)
+          end
+        else
+          credentials
         end
-
-        credentials
       rescue MultiJson::ParseError
-        raise Error, 'client secret fileの形式(json)を確認して下さい'
+        raise MyGoogleCalendarError, 'client secret fileの形式(json)を確認して下さい'
+      rescue => e
+        raise MyGoogleCalendarError, e.message
+      end
+
+      private
+
+      def check_files(client_secret_file_path, token_file_path)
+        raise MyGoogleCalendarError, 'client secret file が存在しません(https://console.cloud.google.com/apisよりDL)' unless File.exist?(client_secret_file_path)
+        raise MyGoogleCalendarError, 'token file が存在しません' unless File.exist?(token_file_path)
       end
     end
   end
@@ -68,7 +78,7 @@ module MyGoogleCalendar
         parsed_start_at = Utility.parse_datetime(start_at)
         parsed_end_at   = Utility.parse_datetime(end_at)
 
-        raise Error, '開始日と終了日を確認して下さい' if parsed_start_at > parsed_end_at
+        raise MyGoogleCalendarError, '開始日と終了日を確認して下さい' if parsed_start_at > parsed_end_at
 
         event_params = {
           summary: summary,
@@ -83,11 +93,11 @@ module MyGoogleCalendar
 
         true
       rescue Google::Apis::ServerError, Google::Apis::ClientError, Google::Apis::AuthorizationError
-        raise Error, 'Google::Apis APIエラーが発生しました'
+        raise MyGoogleCalendarError, 'Google::Apis APIエラーが発生しました'
       rescue InvalidDateTime
-        raise Error, '入力された日付に誤りがあります'
+        raise MyGoogleCalendarError, '入力された日付に誤りがあります'
       rescue => e
-        raise Error, e.message
+        raise MyGoogleCalendarError, e.message
       end
     end
   end

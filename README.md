@@ -22,7 +22,18 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+### get credentials
+```ruby
+credentials = MyGoogleCalendar::MyAuth.credentials('my_files/client_secret.json', 'my_files/google_api_token.yaml', 'hoge@example.com')
+
+# if you cann't get credentials and need to use google calendar code
+credentials = MyGoogleCalendar::MyAuth.credentials('my_files/client_secret.json', 'my_files/google_api_token.yaml', 'hoge@example.com', code = 'token from google calendar')
+```
+
+### register calendar event
+```ruby
+MyGoogleCalendar::Calendar.register!(credentials, your_calendar_id, summary, start_date_at, end_date_at)
+```
 
 ## Development
 
